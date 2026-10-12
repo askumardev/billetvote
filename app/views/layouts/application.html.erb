@@ -21,9 +21,38 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+    <script
+      defer
+      crossorigin="anonymous"
+      data-clerk-publishable-key="<%= ENV['CLERK_PUB_KEY'] %>"
+      src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+      type="text/javascript"
+    ></script>
   </head>
 
   <body>
+  <header>
+
+    </header>
     <%= yield %>
+
+    <script>
+    window.addEventListener("load", () => {
+      const signOutBtn = document.getElementById("signoutBtn");
+      if (!signOutBtn) return;
+
+      signOutBtn.addEventListener("click", async () => {
+        signOutBtn.disabled = true;
+        try {
+          await window.Clerk.load();
+          await window.Clerk.signOut({ redirectUrl: "<%= j login_path %>" });
+        } catch (error) {
+          console.error("Clerk sign-out failed:", error);
+          window.alert("Unable to sign out. Please try again.");
+          signOutBtn.disabled = false;
+        }
+      });
+    });
+    </script>
   </body>
 </html>

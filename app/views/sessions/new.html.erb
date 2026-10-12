@@ -1,0 +1,150 @@
+<h1>Sign in</h1>
+<p id="login-error" role="alert"></p>
+
+<form id="login-form" data-turbo="false">
+  <div>
+    <label for="login-email">Email</label>
+    <input id="login-email" name="email" type="email" required autocomplete="username">
+  </div>
+  <div>
+    <label for="login-password">Password</label>
+    <input id="login-password" name="password" type="password" required autocomplete="current-password">
+  </div>
+  <button id="login-submit" type="submit">Sign in</button>
+</form>
+
+<form id="verification-form" hidden>
+  <h2>Verify your email</h2>
+  <p>A verification code was sent to your email address.</p>
+  <div>
+    <label for="verification-code">Verification code</label>
+    <input id="verification-code" name="code" type="text" required inputmode="numeric" autocomplete="one-time-code">
+  </div>
+  <button id="verification-submit" type="submit">Verify</button>
+  <button id="restart-sign-in" type="button">Use a different account</button>
+</form>
+
+<script>
+  (() => {
+    const loginForm = document.getElementById("login-form");
+    const verificationForm = document.getElementById("verification-form");
+    const errorEl = document.getElementById("login-error");
+    const loginSubmit = document.getElementById("login-submit");
+    const verificationSubmit = document.getElementById("verification-submit");
+    const emailCodeFactor = { current: null };
+    const dashboardUrl = "<%= j dashboard_path %>";
+
+    const showError = (error, fallback) => {
+      const clerkError = error.errors?.[0];
+      errorEl.textContent = clerkError?.longMessage || fallback;
+    };
+
+    const activateSession = async (signIn) => {
+      await window.Clerk.setActive({ session: signIn.createdSessionId });
+      window.location.assign(dashboardUrl);
+    };
+
+    window.addEventListener("load", async () => {
+      if (!window.Clerk) {
+        errorEl.textContent = "Unable to initialize sign-in. Please try again.";
+        return;
+      }
+
+      try {
+        await window.Clerk.load();
+        if (window.Clerk.isSignedIn) {
+          window.location.replace(dashboardUrl);
+        }
+      } catch (error) {
+        console.error("Clerk sign-in failed to initialize:", error);
+        errorEl.textContent = "Unable to initialize sign-in. Please try again.";
+      }
+    });
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      loginSubmit.disabled = true;
+
+      try {
+        if (!window.Clerk) {
+          throw new Error("Clerk's sign-in script did not load.");
+        }
+        await window.Clerk.load();
+
+        const formData = new FormData(loginForm);
+        const signIn = await window.Clerk.client.signIn.create({
+          identifier: formData.get("email"),
+          password: formData.get("password")
+        });
+
+        if (signIn.status === "complete") {
+          await activateSession(signIn);
+          return;
+        }
+
+        if (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") {
+          emailCodeFactor.current = signIn.supportedSecondFactors?.find(
+            (factor) => factor.strategy === "email_code"
+          );
+
+          if (!emailCodeFactor.current) {
+            errorEl.textContent = "This account requires a verification method not supported by this form.";
+            return;
+          }
+
+          await window.Clerk.client.signIn.prepareSecondFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.current.emailAddressId
+          });
+          loginForm.hidden = true;
+          verificationForm.hidden = false;
+          document.getElementById("verification-code").focus();
+          return;
+        }
+
+        errorEl.textContent = `Sign-in requires an additional step (status: ${signIn.status}).`;
+      } catch (error) {
+        console.error("Clerk sign-in failed:", error);
+        const clerkError = error.errors?.[0];
+        if (clerkError?.code === "session_exists" && window.Clerk.isSignedIn) {
+          window.location.replace(dashboardUrl);
+          return;
+        }
+        showError(error, error.message || "Unable to sign in. Check your credentials and try again.");
+      } finally {
+        loginSubmit.disabled = false;
+      }
+    });
+
+    verificationForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      verificationSubmit.disabled = true;
+
+      try {
+        const formData = new FormData(verificationForm);
+        const signIn = await window.Clerk.client.signIn.attemptSecondFactor({
+          strategy: "email_code",
+          code: formData.get("code")
+        });
+
+        if (signIn.status === "complete") {
+          await activateSession(signIn);
+          return;
+        }
+
+        errorEl.textContent = `Verification requires an additional step (status: ${signIn.status}).`;
+      } catch (error) {
+        console.error("Clerk email verification failed:", error);
+        showError(error, "Unable to verify the code. Check it and try again.");
+      } finally {
+        verificationSubmit.disabled = false;
+      }
+    });
+
+    document.getElementById("restart-sign-in").addEventListener("click", () => {
+      window.location.reload();
+    });
+  })();
+</script>

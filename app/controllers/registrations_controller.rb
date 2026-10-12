@@ -1,30 +1,26 @@
 class RegistrationsController < ApplicationController
   def new
-    #redirect_to clerk.sign_up_url
     {}
-    #@user = Clerk::Models::Operations::CreateUserRequest.new
-
   end
 
   def create
     attributes = registration_params
-    binding.pry
+
     if attributes[:password] != attributes[:password_confirmation]
       flash.now[:alert] = "Passwords do not match."
       render :new, status: :unprocessable_entity
       return
     end
-    binding.pry
     request = Clerk::Models::Operations::CreateUserRequest.new(
       first_name: attributes[:first_name],
       last_name: attributes[:last_name],
       email_address: [attributes[:email]],
       password: attributes[:password]
     )
-    binding.pry
+
     response = clerk_sdk.users.create(request: request)
     status = response.raw_response.status
-    binding.pry
+
     if status.between?(200, 299)
       redirect_to login_path,
                   notice: "Account created successfully. Please sign in."
