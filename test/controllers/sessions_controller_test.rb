@@ -5,6 +5,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     get login_url
 
     assert_response :success
+    assert_select "div#login-error.error-messages[role=alert]"
     assert_select "form#login-form" do
       assert_select "input#login-email[type=email][name=email]"
       assert_select "input#login-password[type=password][name=password]"

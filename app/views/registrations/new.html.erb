@@ -1,20 +1,9 @@
 <h1>Create an account</h1>
 
-<% if flash[:alert].present? || @registration&.errors&.any? %>
-  <div class="error-messages" role="alert">
-    <% if flash[:alert].present? %>
-      <p><%= flash[:alert] %></p>
-    <% end %>
-
-    <% if @registration&.errors&.any? %>
-      <ul>
-        <% @registration.errors.full_messages.each do |message| %>
-          <li><%= message %></li>
-        <% end %>
-      </ul>
-    <% end %>
-  </div>
-<% end %>
+<%= render "shared/error_messages",
+           alert: flash[:alert],
+           errors: @registration&.errors&.full_messages,
+           container_id: nil %>
 
 <%= form_with scope: :registration, url: signup_path do |form| %>
   <div>

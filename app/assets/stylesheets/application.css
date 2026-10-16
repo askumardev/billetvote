@@ -8,3 +8,8 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+.error-messages {
+  color: #d32f2f; /* A standard, accessible dark red */
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}

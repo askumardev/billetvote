@@ -1,0 +1,15 @@
+<% if alert.present? || errors.present? || container_id.present? %>
+  <div class="error-messages" role="alert"<% if container_id.present? %> id="<%= container_id %>"<% end %>>
+    <% if alert.present? %>
+      <p><%= alert %></p>
+    <% end %>
+
+    <% if errors.present? %>
+      <ul>
+        <% errors.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+<% end %>
